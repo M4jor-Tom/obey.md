@@ -1,0 +1,147 @@
+{
+  ".opencode/opencode.json": {
+    "mtime": 1781134016.6283448,
+    "ast_hash": "e5f74d14a81702b55bdf53b33ec991d7",
+    "semantic_hash": ""
+  },
+  ".opencode/package.json": {
+    "mtime": 1781134022.0123703,
+    "ast_hash": "fe30757921e184008f4788ddcf1d452c",
+    "semantic_hash": ""
+  },
+  ".opencode/plugins/graphify.js": {
+    "mtime": 1781133844.238441,
+    "ast_hash": "64ccd3c03dbfe0980b6095766f5c4e52",
+    "semantic_hash": ""
+  },
+  "src/__init__.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "src/animation_author.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "1e9a47ff6abdd534e9443020c6e587ac",
+    "semantic_hash": ""
+  },
+  "src/animation_author_test.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "07ae0c6e2f8aee15b641ad93df316397",
+    "semantic_hash": ""
+  },
+  "src/config.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "780fea9b20e49dc4cb2795c007b0137e",
+    "semantic_hash": ""
+  },
+  "src/context_manager.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "6eb3f0f8c298c0fa784e6d3575d0dfce",
+    "semantic_hash": ""
+  },
+  "src/context_manager_test.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "fba7e4eff75ea6595e97c0955d754fdc",
+    "semantic_hash": ""
+  },
+  "src/gltf_resolver.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "4ee446360d24de2be102d2c677086a60",
+    "semantic_hash": ""
+  },
+  "src/gltf_resolver_test.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "0fba121d60e02be542774f370f002b1c",
+    "semantic_hash": ""
+  },
+  "src/llm_client.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "6b44cd35752982c869fa84d2848f36fc",
+    "semantic_hash": ""
+  },
+  "src/llm_client_test.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "cf5f3c9f38c72128e041eedcd32d7158",
+    "semantic_hash": ""
+  },
+  "src/manifest.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "d9d2a03dcec7af2bc99cf60ed3eb9db0",
+    "semantic_hash": ""
+  },
+  "src/manifest_test.py": {
+    "mtime": 1781132581.8614678,
+    "ast_hash": "9e9318e8717c065fbdc9e0c8b930815c",
+    "semantic_hash": ""
+  },
+  "src/models.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "c87b2ade47191c1accaa72672887161f",
+    "semantic_hash": ""
+  },
+  "src/orchestrator.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "9ce873459182195efbabc5934de17bf1",
+    "semantic_hash": ""
+  },
+  "src/orchestrator_test.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "373e380c590ba839f11ec7a912b2f696",
+    "semantic_hash": ""
+  },
+  "src/scene_builder.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "5b88c29bcb751fae083e0a38b431bb80",
+    "semantic_hash": ""
+  },
+  "src/scene_builder_test.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "873647cbaba326d4846f94b056edc2a7",
+    "semantic_hash": ""
+  },
+  "src/validator.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "f14be44489f65ec033b38972e9a82464",
+    "semantic_hash": ""
+  },
+  "src/validator_test.py": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "39e085d86c56a40cd821fb32faa728f8",
+    "semantic_hash": ""
+  },
+  "src/visualizer.py": {
+    "mtime": 1781133567.651586,
+    "ast_hash": "3722db37895afc2ac0c77876408513e8",
+    "semantic_hash": ""
+  },
+  "src/visualizer_test.py": {
+    "mtime": 1781133568.4225883,
+    "ast_hash": "882d16689a63be37c362c0bb98d7cc71",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1781133820.5560653,
+    "ast_hash": "62c05a2bf20bf036a0b2633478663e64",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1781133571.7505977,
+    "ast_hash": "759666255a3072718e736d2932d83f27",
+    "semantic_hash": ""
+  },
+  "tasks/backlog/00_init.prompt.md": {
+    "mtime": 1781133392.1258533,
+    "ast_hash": "b4df09f5eafd72f14f86c1057d5c566a",
+    "semantic_hash": ""
+  },
+  "tasks/backlog/00_prd-gltf-scene-orchestrator.md": {
+    "mtime": 1781132581.862468,
+    "ast_hash": "c1a7d18b93f32b60b6832188eb762565",
+    "semantic_hash": ""
+  },
+  "tasks/backlog/00_tasks-gltf-scene-orchestrator.md": {
+    "mtime": 1781133442.9518309,
+    "ast_hash": "113263884e5fc0bb85bfbdc111162a22",
+    "semantic_hash": ""
+  }
+}
