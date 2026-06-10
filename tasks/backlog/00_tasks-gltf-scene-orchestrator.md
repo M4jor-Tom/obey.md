@@ -20,15 +20,14 @@
 - `src/config.py` - Configuration constants (max iterations, max keyframes, scene duration limits)
 - `src/context_manager.py` - Context window management (trim/summarize old iteration state)
 - `src/context_manager.test.py` - Unit tests for context management
-- `scripts/gltf_to_png.py` - Static preview generation tool (external nix + GitHub dependency)
-- `scripts/gltf_to_webm.py` - Video preview generation tool (external nix + GitHub dependency)
+- `flake.nix` - Fetches `gltf_to_png.py` and `gltf_to_webm.py` from `github.com/M4jor-Tom/` via `fetchurl`, wraps as PATH tools
 - `README.md` - System documentation, usage examples, manifest schema reference
 
 ### Notes
 
 - Unit tests should be placed alongside the code files they test (e.g., `manifest.py` and `manifest.test.py` in the same directory).
 - Use `pytest` to run tests: `pytest` runs all tests; `pytest tests/path/to/test.py` runs a specific file.
-- External visualization tools (`gltf_to_png.py`, `gltf_to_webm.py`) are sourced from `github.com/M4jor-Tom/` and should be placed in `scripts/`.
+- External visualization tools (`gltf_to_png.py`, `gltf_to_webm.py`) are sourced from `github.com/M4jor-Tom/` via `fetchurl` in `flake.nix` and made available on `PATH` at build time. The `visualizer.py` module discovers them via `shutil.which()`. No static files are checked into `scripts/`.
 - The iterative loop is the core architectural pattern — all other components feed into it.
 
 ## Instructions for Completing Tasks
@@ -83,8 +82,8 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 5.0 Iterative feedback loop (author → render → observe → critique → refine)
   - [x] 5.1 Implement `src/orchestrator.py` — `run_iteration(scene_gltf, manifest, iteration_state)`
   - [x] 5.2 Implement authoring step: calls LLM to produce animation, applies to scene GLTF
-  - [ ] 5.3 Implement render step: calls `gltf_to_webm.py` to produce intermediate video
-  - [ ] 5.4 Implement observe step: renders video for LLM multimodal analysis
+  - [x] 5.3 Implement render step: calls `gltf_to_webm` via `visualizer.generate_webm_preview()` to produce intermediate video for each iteration
+  - [x] 5.4 Implement observe step: `_critique_animation()` extracts frames from rendered video and passes them to LLM for multimodal analysis
   - [x] 5.5 Implement critique step: LLM compares current animation against prompt
   - [x] 5.6 Implement refine step: LLM produces delta animation data to address gaps
   - [x] 5.7 Implement convergence decision: LLM determines continue vs finalize

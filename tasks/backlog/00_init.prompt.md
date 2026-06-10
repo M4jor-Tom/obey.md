@@ -15,9 +15,9 @@
 
 ## Process Logics
 - The main process is an agent using skills and tools.
-- Tools:
-    - What's needed to visualize a picture of a gltf https://github.com/M4jor-Tom/gltf_to_png.py
-    - What's needed to visualize a video of a gltf https://github.com/M4jor-Tom/gltf_to_webm.py
+- Tools (imported by the flake via fetchUrl):
+    - gltf_to_png to visualize a picture of a gltf https://github.com/M4jor-Tom/gltf_to_png.py
+    - gltf_to_webm to visualize a video of a gltf https://github.com/M4jor-Tom/gltf_to_webm.py
 
 ## Agent Dispatch
 - Tasks can be executed by a remote agent (configured via agent URL, agent name, and agent key)

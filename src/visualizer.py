@@ -12,12 +12,8 @@ def _find_script(name: str) -> str:
 
 
 def check_tools_available() -> dict[str, bool]:
-    png_tool = shutil.which("gltf_to_png.py") or os.path.exists(
-        os.path.join(os.path.dirname(__file__), "..", "scripts", "gltf_to_png.py")
-    )
-    webm_tool = shutil.which("gltf_to_webm.py") or os.path.exists(
-        os.path.join(os.path.dirname(__file__), "..", "scripts", "gltf_to_webm.py")
-    )
+    png_tool = shutil.which("gltf_to_png")
+    webm_tool = shutil.which("gltf_to_webm")
     return {
         "gltf_to_png": bool(png_tool),
         "gltf_to_webm": bool(webm_tool),
@@ -25,26 +21,26 @@ def check_tools_available() -> dict[str, bool]:
 
 
 def generate_png_preview(scene_gltf_path: str, output_path: str) -> str:
-    script = _find_script("gltf_to_png.py")
+    script = _find_script("gltf_to_png")
     logger.info("Rendering PNG: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
-        ["python", script, scene_gltf_path, output_path],
+        [script, "-i", scene_gltf_path, "-o", output_path],
         capture_output=True, text=True, timeout=120,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"gltf_to_png.py failed: {result.stderr}")
+        raise RuntimeError(f"gltf_to_png failed: {result.stderr}")
     return output_path
 
 
 def generate_webm_preview(scene_gltf_path: str, output_path: str) -> str:
-    script = _find_script("gltf_to_webm.py")
+    script = _find_script("gltf_to_webm")
     logger.info("Rendering WebM: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
-        ["python", script, scene_gltf_path, output_path],
+        [script, "-i", scene_gltf_path, "-o", output_path],
         capture_output=True, text=True, timeout=300,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"gltf_to_webm.py failed: {result.stderr}")
+        raise RuntimeError(f"gltf_to_webm failed: {result.stderr}")
     return output_path
 
 

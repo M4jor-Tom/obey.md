@@ -33,7 +33,7 @@ scenarios/<scenario_name>/
 │   ├── preview.png
 │   ├── preview.webm
 │   └── iter_0000.webm
-scripts/                         # Visualization tools (gltf_to_png.py, gltf_to_webm.py)
+scripts/                         # (Optional) manual tool placement; Nix provides gltf_to_png, gltf_to_webm on PATH
 src/                             # Python package
 ├── manifest.py                  # Manifest parsing and validation
 ├── gltf_resolver.py             # Local GLTF file resolution
