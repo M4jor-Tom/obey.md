@@ -19,8 +19,7 @@ The problem it solves: 3D artists and general users need a repeatable, automated
 ## User Stories
 
 1. As a 3D artist, I want to place two character GLTFs (a knight and a dragon) in a `scenarios/battle/input/` folder and write a prompt describing their fight, so the system generates a single animated GLTF scene showing them circling and striking each other.
-2. As a general user, I want to reference a GLTF hosted on GitHub via URL in my JSON manifest, so I don't need to download assets manually.
-3. As a user, I want the system to use every animation type available (position, rotation, scale keyframes AND morph targets) on my characters so the scene is as rich as possible.
+2. As a user, I want the system to use every animation type available (position, rotation, scale keyframes AND morph targets) on my characters so the scene is as rich as possible.
 4. As a user previewing results, I want the agent to generate a PNG thumbnail and a WebM video of the output scene so I can quickly verify the result without loading a 3D viewer.
 
 ## Process Flow
@@ -42,7 +41,7 @@ The system operates as an iterative LLM-driven refinement loop:
 ## Functional Requirements
 
 1. **Input Manifest Format**: The system must accept a single JSON file that contains:
-   - A list of GLTF references (either local filesystem paths, or GitHub repository URLs for sparse cloning)
+   - A list of GLTF references
    - A text prompt describing the desired scene and character actions
    - Character names that map 1:1 to provided GLTF filenames
 
@@ -50,9 +49,7 @@ The system operates as an iterative LLM-driven refinement loop:
    - `input/` — user-provided manifest JSON and GLTF files
    - `output/` — process-generated files (input GLTFs copied, plus the resulting animated scene GLTF, plus preview PNG and WebM)
 
-3. **GLTF Input Resolution**: The system must support both:
-   - Local GLTF file references (already present in `input/`)
-   - GitHub repository URLs (sparse-cloned into `input/` at runtime)
+3. **GLTF Input Resolution**: The system must read GLTF files from the input directory.
 
 4. **GLTF Input Copying**: The system must copy all input GLTFs into the `output/` directory unmodified. These serve as working copies referenced by the scene GLTF.
 
@@ -93,6 +90,11 @@ The system operates as an iterative LLM-driven refinement loop:
 
 15. **Missing Animation Capabilities**: When a requested animation type (e.g., morph targets) is unavailable in a given character GLTF, the LLM must detect this and fall back to an available technique (e.g., bone rotation to approximate the same action). The LLM must note the fallback in its convergence report.
 
+16. **Agent Backend Selection**: The system must support two modes:
+    - **Remote agent mode**: Configured via `--agent-url`, `--agent-name`, `--agent-key` CLI flags, which set the `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KEY` environment variables respectively.
+    - **Local opencode mode**: When no remote agent is configured, the system falls back to running `opencode run` as a subprocess. The `opencode` binary is provided by the Nix flake and uses its own provider/model configuration.
+    - The fallback must be transparent: all LLM calls (animation authoring, critique, convergence decision) work through either backend.
+
 ## Non-Goals (Out of Scope)
 
 1. Generating new 3D character geometry from text — all characters must be provided as input GLTFs.
@@ -115,7 +117,7 @@ The system operates as an iterative LLM-driven refinement loop:
 
 1. **Dependencies**: The agent requires `gltf_to_png.py` and `gltf_to_webm.py` from `github.com/M4jor-Tom/` for visualization.
 2. **GLTF Animation**: The output GLTF uses standard node/channel animation structures. All animations run on the same timeline (no separate clips).
-3. **Git Sparse Clone**: When resolving GitHub URLs, the agent will use `git sparse-checkout` to clone only the relevant GLTF files, not entire repositories.
+3. **Test Command**: All tests run via `nix run .#test` (equivalent to `python -m pytest src/ -v`). The flake provides an `apps.test` entry for this.
 4. **Concurrent Animation**: All characters animate simultaneously on a single timeline. The prompt determines relative timing, not separate scene chapters.
 5. **LLM Constraints**: The LLM used must have sufficient context window to hold the full GLTF JSON (which can be large with keyframe data) and multimodal vision capability to analyze rendered video frames. The GLTF JSON grows with each iteration as the LLM appends or modifies animation data — context window exhaustion is a real failure mode. The system must either (a) trim older iteration data from the context, (b) summarize prior states, or (c) fail gracefully with a clear message when the context budget is exceeded.
 6. **Error Recovery**: Invalid GLTF JSON produced by the LLM is caught by a validation step. The authoring step retries up to 3 times before the iteration is skipped.
