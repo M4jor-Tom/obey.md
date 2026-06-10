@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from loguru import logger
+
 
 def estimate_tokens(data: Any) -> int:
     text = json.dumps(data) if not isinstance(data, str) else data
@@ -16,6 +18,9 @@ def trim_iteration_history(history: list, max_tokens: int) -> list:
         if tok_count <= max_tokens:
             break
         trimmed.pop(0)
+    removed = len(history) - len(trimmed)
+    if removed:
+        logger.info("Trimmed history: {} -> {} entries (budget: {} tokens)", len(history), len(trimmed), max_tokens)
     return trimmed
 
 
@@ -27,4 +32,5 @@ def summarize_prior_state(state: dict) -> str:
         f"[Iteration {iteration}] Critique: {critique[:200]}... "
         f"Decision: {convergence}"
     )
+    logger.debug("Summarized iteration {} state", iteration)
     return summary

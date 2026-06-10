@@ -5,6 +5,8 @@ import json
 import os
 from typing import Optional
 
+from loguru import logger
+
 from src.models import Manifest
 
 
@@ -37,6 +39,7 @@ def add_character_node(scene: dict, character_name: str, gltf_uri: str, mesh_ind
 
 
 def build_root_scene(manifest: Manifest, output_dir: str) -> dict:
+    logger.info("Building root scene with {} characters", len(manifest.characters))
     scene = build_empty_scene()
     for char in manifest.characters:
         gltf_uri = char.gltf_ref
@@ -44,7 +47,7 @@ def build_root_scene(manifest: Manifest, output_dir: str) -> dict:
         if os.path.exists(scene_path):
             with open(scene_path) as f:
                 char_gltf = json.load(f)
-            offsets = _merge_character_gltf(scene, char_gltf)
+            offsets = _merge_character_gltf(scene, char_gltf, char.name)
             char_root_idx = len(scene["nodes"])
             char_root_node = {"name": char.name}
             root_nodes = char_gltf.get("scenes", [{}])[0].get("nodes", [])
@@ -56,11 +59,12 @@ def build_root_scene(manifest: Manifest, output_dir: str) -> dict:
             scene["scenes"][0]["nodes"].append(char_root_idx)
             _embed_extensions_from(scene, char_gltf)
         else:
+            logger.debug("Character GLTF not found at {}, adding placeholder node", scene_path)
             add_character_node(scene, char.name, gltf_uri)
     return scene
 
 
-def _merge_character_gltf(root_scene: dict, char_gltf: dict) -> dict[str, int]:
+def _merge_character_gltf(root_scene: dict, char_gltf: dict, char_name: str = "") -> dict[str, int]:
     offsets: dict[str, int] = {}
     merge_order = [
         "extensionsUsed", "extensionsRequired",
@@ -156,6 +160,9 @@ def _merge_character_gltf(root_scene: dict, char_gltf: dict) -> dict[str, int]:
                     if "output" in samp:
                         samp["output"] = samp["output"] + _offset("accessors")
 
+    n_nodes = len(char_gltf.get("nodes", []))
+    n_meshes = len(char_gltf.get("meshes", []))
+    logger.debug("Merged {}: +{} nodes, +{} meshes", char_name or "unknown", n_nodes, n_meshes)
     return offsets
 
 

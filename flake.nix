@@ -11,7 +11,7 @@
   in {
     apps = forAllSystems (system: {
       default = let
-        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai ]);
+        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai loguru ]);
         opencode = pkgsFor.${system}.opencode;
         wrapper = pkgsFor.${system}.writeShellScriptBin "obey" ''
           export PATH="${opencode}/bin:$PATH"
@@ -23,7 +23,7 @@
       };
 
       test = let
-        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai pytest ]);
+        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai pytest loguru ]);
         testScript = pkgsFor.${system}.writeShellScriptBin "obey-test" ''
           exec ${python}/bin/python -m pytest src/ -v "$@"
         '';
@@ -40,6 +40,7 @@
           python313Packages.pip
           python313Packages.pytest
           python313Packages.openai
+          python313Packages.loguru
           ffmpeg
           opencode
         ];

@@ -4,6 +4,8 @@ import os
 import subprocess
 import shutil
 
+from loguru import logger
+
 
 def _find_script(name: str) -> str:
     return shutil.which(name) or os.path.join(os.path.dirname(__file__), "..", "scripts", name)
@@ -24,6 +26,7 @@ def check_tools_available() -> dict[str, bool]:
 
 def generate_png_preview(scene_gltf_path: str, output_path: str) -> str:
     script = _find_script("gltf_to_png.py")
+    logger.info("Rendering PNG: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
         ["python", script, scene_gltf_path, output_path],
         capture_output=True, text=True, timeout=120,
@@ -35,6 +38,7 @@ def generate_png_preview(scene_gltf_path: str, output_path: str) -> str:
 
 def generate_webm_preview(scene_gltf_path: str, output_path: str) -> str:
     script = _find_script("gltf_to_webm.py")
+    logger.info("Rendering WebM: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
         ["python", script, scene_gltf_path, output_path],
         capture_output=True, text=True, timeout=300,
@@ -52,6 +56,7 @@ def generate_intermediate_frames(scene_gltf_path: str, output_dir: str) -> list[
 
 
 def generate_final_previews(scene_path: str, output_dir: str) -> dict[str, str]:
+    logger.info("Generating final previews in {}", output_dir)
     os.makedirs(output_dir, exist_ok=True)
     png_path = os.path.join(output_dir, "preview.png")
     webm_path = os.path.join(output_dir, "preview.webm")

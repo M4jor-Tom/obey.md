@@ -4,6 +4,8 @@ import json
 import copy
 from typing import Optional
 
+from loguru import logger
+
 
 ANIMATION_AUTHORING_PROMPT_TEMPLATE = """
 You are an expert GLTF animation engineer. Below is the current scene GLTF JSON and the user's animation prompt.
@@ -87,12 +89,14 @@ def build_authoring_prompt(
     iteration_state_json: str,
     duration_seconds: float = 10.0,
 ) -> str:
-    return ANIMATION_AUTHORING_PROMPT_TEMPLATE.format(
+    prompt = ANIMATION_AUTHORING_PROMPT_TEMPLATE.format(
         scene_gltf_json=json.dumps(scene_gltf, indent=2),
         manifest_json=manifest_json,
         iteration_state_json=iteration_state_json,
         duration_seconds=duration_seconds,
     )
+    logger.debug("Built authoring prompt ({} chars), duration={}s", len(prompt), duration_seconds)
+    return prompt
 
 
 def add_translation_keyframe(
@@ -205,16 +209,23 @@ def apply_animation_to_scene(scene_gltf: dict, animation_data: dict) -> dict:
     scene = copy.deepcopy(scene_gltf)
     _ensure_animation_structures(scene)
 
+    n_anims = 0
+    replace = animation_data.get("replace_existing", False)
     if "animations" in animation_data:
-        if animation_data.get("replace_existing", False):
+        n_anims = len(animation_data["animations"])
+        if replace:
             scene["animations"] = []
         scene["animations"].extend(animation_data["animations"])
 
+    n_acc = len(animation_data.get("accessors", []))
+    n_bv = len(animation_data.get("bufferViews", []))
+    n_buf = len(animation_data.get("buffers", []))
     for key in ("accessors", "bufferViews", "buffers"):
         if key in animation_data:
             scene.setdefault(key, [])
             scene[key].extend(animation_data[key])
 
+    logger.info("Applied {} animations (replace={}), +{} accessors, +{} bufferViews, +{} buffers", n_anims, replace, n_acc, n_bv, n_buf)
     return scene
 
 

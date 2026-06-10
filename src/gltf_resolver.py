@@ -4,6 +4,8 @@ import os
 import shutil
 from pathlib import Path
 
+from loguru import logger
+
 from src.models import Manifest
 
 
@@ -13,6 +15,7 @@ def resolve_local(source_dir: str, dest_dir: str) -> str:
 
     dest = Path(dest_dir)
     shutil.copytree(source_dir, str(dest), dirs_exist_ok=True)
+    logger.info("Copied {} -> {}", source_dir, dest)
 
     gltf_files = [f for f in os.listdir(source_dir) if f.endswith(".gltf")]
     if not gltf_files:
@@ -26,6 +29,7 @@ def resolve_all(
     input_dir: str,
     output_dir: str,
 ) -> dict[str, str]:
+    logger.info("Resolving {} character GLTFs -> {}", len(manifest.characters), output_dir)
     resolved: dict[str, str] = {}
     for char in manifest.characters:
         source_dir = os.path.join(input_dir, char.gltf_ref)

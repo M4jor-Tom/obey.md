@@ -6,15 +6,17 @@ import subprocess
 import tempfile
 from typing import Optional
 
+from loguru import logger
 from openai import OpenAI
 
 _prompted_config: dict[str, str] = {}
 
 
 def _has_remote_config() -> bool:
-    return bool(
-        os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_BASE_URL")
-    )
+    key_set = bool(os.environ.get("OPENAI_API_KEY"))
+    url_set = bool(os.environ.get("OPENAI_BASE_URL"))
+    logger.debug("Remote config: key={}, base_url={}", key_set, url_set)
+    return key_set or url_set
 
 
 def _ensure_config() -> None:
@@ -73,6 +75,7 @@ def _call_opencode(
     if system_prompt:
         full_prompt = f"<system>\n{system_prompt}\n</system>\n\n{prompt}"
 
+    logger.info("Using opencode subprocess backend")
     cmd = [
         "opencode", "run",
         "--format", "json",
@@ -86,6 +89,7 @@ def _call_opencode(
             with open(path, "wb") as f:
                 f.write(img_bytes)
             cmd.extend(["--file", path])
+        logger.debug("Attached {} image(s) to opencode call", len(images))
 
     proc = subprocess.run(
         cmd,
@@ -114,7 +118,9 @@ def _call_opencode(
         except (json.JSONDecodeError, KeyError):
             continue
 
-    return "".join(parts)
+    result = "".join(parts)
+    logger.debug("opencode response: {} chars", len(result))
+    return result
 
 
 def call_llm(
@@ -127,6 +133,7 @@ def call_llm(
 
     client = _get_client()
     model = _get_model()
+    logger.info("LLM call: backend=remote, model={}", model)
 
     messages: list[dict] = []
     if system_prompt:
@@ -148,7 +155,9 @@ def call_llm(
         messages=messages,
         temperature=0.7,
     )
-    return response.choices[0].message.content or ""
+    result = response.choices[0].message.content or ""
+    logger.debug("LLM response: {} chars", len(result))
+    return result
 
 
 def call_llm_json(
@@ -161,7 +170,11 @@ def call_llm_json(
     if text.startswith("```"):
         text = text.split("\n", 1)[-1]
         text = text.rsplit("```", 1)[0]
-    return json.loads(text.strip())
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError as e:
+        logger.warning("JSON parse failed: {} — raw preview: {}...", e, text[:200])
+        raise
 
 
 def extract_video_frames(video_path: str, num_frames: int = 6) -> list[bytes]:
@@ -176,6 +189,8 @@ def extract_video_frames(video_path: str, num_frames: int = 6) -> list[bytes]:
     probe_data = json.loads(probe.stdout) if probe.returncode == 0 else {}
     duration = float(probe_data.get("streams", [{}])[0].get("duration", 5))
 
+    logger.info("Extracting {} frames from {} (duration={}s)", num_frames, os.path.basename(video_path), duration)
+
     frames: list[bytes] = []
     for i in range(num_frames):
         t = (i + 1) * duration / (num_frames + 1)
@@ -186,4 +201,6 @@ def extract_video_frames(video_path: str, num_frames: int = 6) -> list[bytes]:
         )
         if result.returncode == 0 and result.stdout:
             frames.append(result.stdout)
+
+    logger.debug("Extracted {} frames successfully", len(frames))
     return frames

@@ -5,8 +5,10 @@ import os
 import copy
 from typing import Optional
 
+from loguru import logger
+
 from src.models import Manifest, IterationState
-from src.config import MAX_ITERATIONS, HARD_MAX_ITERATIONS, MAX_RETRIES, MAX_SCENE_DURATION
+from src.config import MAX_ITERATIONS, HARD_MAX_ITERATIONS, MAX_RETRIES, MAX_SCENE_DURATION, configure_logging
 from src.manifest import parse_manifest
 from src.gltf_resolver import resolve_all
 from src.scene_builder import build_root_scene
@@ -25,11 +27,17 @@ class Orchestrator:
         self.converged = False
         self.iteration_count = 0
         self.max_iterations = min(MAX_ITERATIONS, HARD_MAX_ITERATIONS)
+        logger.info(
+            "Manifest: prompt=\"{}\" {} characters, max_iter={}",
+            self.manifest.prompt[:80], len(self.manifest.characters), self.max_iterations,
+        )
 
     def setup(self) -> dict:
         os.makedirs(self.output_dir, exist_ok=True)
+        logger.info("Setting up scene -> {}", self.output_dir)
         resolve_all(self.manifest, self.input_dir, self.output_dir)
         scene = build_root_scene(self.manifest, self.output_dir)
+        logger.debug("Root scene built: {} top-level nodes", len(scene["scenes"][0]["nodes"]))
         return scene
 
     def validate_and_fix(self, scene: dict) -> dict:
@@ -54,13 +62,18 @@ class Orchestrator:
             }) for s in self.iteration_history[-3:]],
         })
 
+        logger.info("[Iter {}] Authoring animation via LLM", iteration_number)
         prompt = build_authoring_prompt(
             scene_gltf, manifest_json, iteration_state_json,
             duration_seconds=self.manifest.duration_seconds or MAX_SCENE_DURATION,
         )
         animation_data = self._call_llm_for_animation(prompt, scene_gltf)
+        n_anims = len(animation_data.get("animations", []))
+        n_acc = len(animation_data.get("accessors", []))
+        logger.info("[Iter {}] LLM returned {} animations, {} accessors", iteration_number, n_anims, n_acc)
 
         retries = 0
+        validation_errors = []
         while retries < MAX_RETRIES:
             try:
                 updated_scene = apply_animation_to_scene(scene_gltf, animation_data)
@@ -68,33 +81,42 @@ class Orchestrator:
                 if not validation_errors:
                     break
                 state.errors.append(f"Validation failed (attempt {retries + 1}): {'; '.join(validation_errors)}")
+                logger.warning("[Iter {}] Validation failed (attempt {}/{}): {}", iteration_number, retries + 1, MAX_RETRIES, validation_errors[0] if validation_errors else "unknown")
                 retries += 1
             except Exception as e:
                 state.errors.append(f"Error applying animation (attempt {retries + 1}): {e}")
+                logger.warning("[Iter {}] Error applying animation (attempt {}/{}): {}", iteration_number, retries + 1, MAX_RETRIES, e)
                 retries += 1
 
         if retries >= MAX_RETRIES and validation_errors:
+            logger.warning("[Iter {}] Max retries reached, using previous scene", iteration_number)
             updated_scene = scene_gltf
 
         video_path = os.path.join(self.output_dir, f"iter_{iteration_number:04d}.webm")
+        logger.info("[Iter {}] Rendering video preview -> {}", iteration_number, os.path.basename(video_path))
         try:
             generate_webm_preview(
                 os.path.join(self.output_dir, "scene.gltf"),
                 video_path,
             )
-        except (RuntimeError, FileNotFoundError):
-            pass
+        except (RuntimeError, FileNotFoundError) as e:
+            logger.warning("[Iter {}] Video rendering skipped: {}", iteration_number, e)
 
         state.critique = self._critique_animation(updated_scene, video_path)
+        logger.info("[Iter {}] Critique: {} chars", iteration_number, len(state.critique))
+
         state.convergence_decision = self._decide_convergence(state.critique)
+        logger.info("[Iter {}] Convergence: {}", iteration_number, state.convergence_decision)
 
         self.iteration_history.append(state)
 
         history_dicts = [s.to_dict() for s in self.iteration_history]
         tok_count = estimate_tokens(history_dicts)
+        before = len(self.iteration_history)
         self.iteration_history = trim_iteration_history(
             self.iteration_history, tok_count
         )
+        logger.debug("[Iter {}] Context: {} tokens, history {} -> {} entries", iteration_number, tok_count, before, len(self.iteration_history))
 
         return updated_scene, state
 
@@ -108,7 +130,8 @@ class Orchestrator:
         try:
             result = call_llm_json(prompt, system_prompt=system)
             return result
-        except Exception:
+        except Exception as e:
+            logger.warning("LLM animation call failed, using empty fallback: {}", e)
             return {
                 "animations": [],
                 "accessors": scene.get("accessors", []),
@@ -124,9 +147,10 @@ class Orchestrator:
         if video_path and os.path.exists(video_path):
             try:
                 frames = extract_video_frames(video_path, num_frames=6)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Frame extraction failed: {}", e)
 
+        logger.info("Critiquing animation with {} video frames", len(frames))
         critique_prompt = (
             "You are observing an animated GLTF scene. "
             "Below are sampled frames from the rendered animation.\n\n"
@@ -141,7 +165,8 @@ class Orchestrator:
         try:
             critique = call_llm(critique_prompt, images=frames if frames else None)
             return critique or "No critique generated."
-        except Exception:
+        except Exception as e:
+            logger.warning("Critique failed, using fallback response: {}", e)
             return "Animation looks reasonable. Characters are visible and moving."
 
     def _decide_convergence(self, critique: str) -> str:
@@ -152,15 +177,18 @@ class Orchestrator:
             f"Critique:\n{critique}\n\n"
             f"Reply with exactly one word: 'continue' or 'finalize'."
         )
+        logger.debug("Convergence decision prompt: {} chars", len(decision_prompt))
         try:
             decision = call_llm(decision_prompt).strip().lower()
             if "finalize" in decision:
                 return "finalize"
             return "continue"
-        except Exception:
+        except Exception as e:
+            logger.warning("Convergence decision failed, defaulting to finalize: {}", e)
             return "finalize"
 
     def run_full_loop(self) -> dict:
+        logger.info("Starting iteration loop (max {})", self.max_iterations)
         scene = self.setup()
         scene_path = os.path.join(self.output_dir, "scene.gltf")
         with open(scene_path, "w") as f:
@@ -174,8 +202,13 @@ class Orchestrator:
 
             if state.convergence_decision == "finalize":
                 self.converged = True
+                logger.info("Converged at iteration {}", iteration)
                 break
 
+        if not self.converged:
+            logger.info("Reached max iterations ({}) without convergence", self.max_iterations)
+
+        logger.info("Generating final previews")
         generate_final_previews(scene_path, self.output_dir)
         return scene
 
@@ -194,7 +227,11 @@ if __name__ == "__main__":
     parser.add_argument("--agent-url", help="Remote agent base URL (sets OPENAI_BASE_URL)")
     parser.add_argument("--agent-name", help="Remote agent model name (sets OPENAI_MODEL)")
     parser.add_argument("--agent-key", help="Remote agent API key (sets OPENAI_API_KEY)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG-level logging")
+    parser.add_argument("--log-file", help="Write DEBUG logs to file")
     args = parser.parse_args()
+
+    configure_logging(level="DEBUG" if args.verbose else "INFO", log_file=args.log_file)
 
     if args.agent_url:
         os.environ.setdefault("OPENAI_BASE_URL", args.agent_url)
@@ -209,4 +246,4 @@ if __name__ == "__main__":
     scene_path = os.path.join(args.output, "scene.gltf")
     with open(scene_path, "w") as f:
         json.dump(scene, f, indent=2)
-    print(f"Done. Scene written to {scene_path}")
+    logger.info("Done. Scene written to {}", scene_path)
