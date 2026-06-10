@@ -79,8 +79,8 @@ The system operates as an iterative LLM-driven refinement loop:
 11. **Character Referencing**: Characters must be provided as GLTF files. Their filenames (without extension) serve as their reference names in prompts. The system must never generate new GLTF character geometry.
 
 12. **Visualization Tools**: The agent must use:
-    - `gltf_to_png.py` to produce a static preview image of the output scene
-    - `gltf_to_webm.py` to produce a video preview of the output animation
+    - `gltf_to_png.py` to produce a static preview image of the output scene calling https://github.com/M4jor-Tom/gltf_to_png.py thanks to the flake
+    - `gltf_to_webm.py` to produce a video preview of the output animation calling https://github.com/M4jor-Tom/gltf_to_webm.py thanks to the flake
     - During iteration, `gltf_to_webm.py` renders intermediate frames for LLM observation
     - At final output, both tools produce the deliverable previews
 

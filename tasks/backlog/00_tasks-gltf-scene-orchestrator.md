@@ -14,14 +14,14 @@
 - `src/orchestrator.test.py` - Integration tests for full loop
 - `src/validator.py` - GLTF JSON schema validation and error recovery
 - `src/validator.test.py` - Unit tests for validator
-- `src/visualizer.py` - Integration glue for `gltf_to_png.py` and `gltf_to_webm.py`
+- `src/visualizer.py` - Integration glue for `gltf_to_png.py` and `gltf_to_webm.py`, both coming from the flake
 - `src/visualizer.test.py` - Unit tests for visualizer integration
 - `src/models.py` - Shared data models and types (manifest, scene state, iteration state)
 - `src/config.py` - Configuration constants (max iterations, max keyframes, scene duration limits)
 - `src/context_manager.py` - Context window management (trim/summarize old iteration state)
 - `src/context_manager.test.py` - Unit tests for context management
-- `scripts/gltf_to_png.py` - Static preview generation tool (external dependency)
-- `scripts/gltf_to_webm.py` - Video preview generation tool (external dependency)
+- `scripts/gltf_to_png.py` - Static preview generation tool (external nix + GitHub dependency)
+- `scripts/gltf_to_webm.py` - Video preview generation tool (external nix + GitHub dependency)
 - `README.md` - System documentation, usage examples, manifest schema reference
 
 ### Notes
@@ -83,8 +83,8 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 5.0 Iterative feedback loop (author → render → observe → critique → refine)
   - [x] 5.1 Implement `src/orchestrator.py` — `run_iteration(scene_gltf, manifest, iteration_state)`
   - [x] 5.2 Implement authoring step: calls LLM to produce animation, applies to scene GLTF
-  - [x] 5.3 Implement render step: calls `gltf_to_webm.py` to produce intermediate video
-  - [x] 5.4 Implement observe step: renders video for LLM multimodal analysis
+  - [ ] 5.3 Implement render step: calls `gltf_to_webm.py` to produce intermediate video
+  - [ ] 5.4 Implement observe step: renders video for LLM multimodal analysis
   - [x] 5.5 Implement critique step: LLM compares current animation against prompt
   - [x] 5.6 Implement refine step: LLM produces delta animation data to address gaps
   - [x] 5.7 Implement convergence decision: LLM determines continue vs finalize
