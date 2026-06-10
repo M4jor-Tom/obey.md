@@ -7,10 +7,6 @@ import shutil
 from loguru import logger
 
 
-def _find_script(name: str) -> str:
-    return shutil.which(name) or os.path.join(os.path.dirname(__file__), "..", "scripts", name)
-
-
 def check_tools_available() -> dict[str, bool]:
     png_tool = shutil.which("gltf_to_png")
     webm_tool = shutil.which("gltf_to_webm")
@@ -21,7 +17,7 @@ def check_tools_available() -> dict[str, bool]:
 
 
 def generate_png_preview(scene_gltf_path: str, output_path: str) -> str:
-    script = _find_script("gltf_to_png")
+    script = shutil.which("gltf_to_png")
     logger.info("Rendering PNG: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
         [script, "-i", scene_gltf_path, "-o", output_path],
@@ -33,7 +29,7 @@ def generate_png_preview(scene_gltf_path: str, output_path: str) -> str:
 
 
 def generate_webm_preview(scene_gltf_path: str, output_path: str) -> str:
-    script = _find_script("gltf_to_webm")
+    script = shutil.which("gltf_to_webm")
     logger.info("Rendering WebM: {} -> {}", os.path.basename(scene_gltf_path), os.path.basename(output_path))
     result = subprocess.run(
         [script, "-i", scene_gltf_path, "-o", output_path],

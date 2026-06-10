@@ -14,20 +14,20 @@
 - `src/orchestrator.test.py` - Integration tests for full loop
 - `src/validator.py` - GLTF JSON schema validation and error recovery
 - `src/validator.test.py` - Unit tests for validator
-- `src/visualizer.py` - Integration glue for `gltf_to_png.py` and `gltf_to_webm.py`, both coming from the flake
+- `src/visualizer.py` - Integration glue for `gltf_to_png.py` and `gltf_to_webm.py`, both coming from flake inputs
 - `src/visualizer.test.py` - Unit tests for visualizer integration
 - `src/models.py` - Shared data models and types (manifest, scene state, iteration state)
 - `src/config.py` - Configuration constants (max iterations, max keyframes, scene duration limits)
 - `src/context_manager.py` - Context window management (trim/summarize old iteration state)
 - `src/context_manager.test.py` - Unit tests for context management
-- `flake.nix` - Fetches `gltf_to_png.py` and `gltf_to_webm.py` from `github.com/M4jor-Tom/` via `fetchurl`, wraps as PATH tools
+- `flake.nix` - Adds `gltf-to-png` and `gltf-to-webm` as flake inputs from `github.com/M4jor-Tom/`, symlinks them as PATH tools
 - `README.md` - System documentation, usage examples, manifest schema reference
 
 ### Notes
 
 - Unit tests should be placed alongside the code files they test (e.g., `manifest.py` and `manifest.test.py` in the same directory).
 - Use `pytest` to run tests: `pytest` runs all tests; `pytest tests/path/to/test.py` runs a specific file.
-- External visualization tools (`gltf_to_png.py`, `gltf_to_webm.py`) are sourced from `github.com/M4jor-Tom/` via `fetchurl` in `flake.nix` and made available on `PATH` at build time. The `visualizer.py` module discovers them via `shutil.which()`. No static files are checked into `scripts/`.
+- External visualization tools (`gltf_to_png.py`, `gltf_to_webm.py`) are sourced from `github.com/M4jor-Tom/` via flake inputs (`gltf-to-png`, `gltf-to-webm`) in `flake.nix` and made available on `PATH` at build time. The `visualizer.py` module discovers them via `shutil.which()`. No static files are checked into `scripts/`.
 - The iterative loop is the core architectural pattern — all other components feed into it.
 
 ## Instructions for Completing Tasks
@@ -47,7 +47,7 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 1.0 Project scaffolding and directory structure
   - [x] 1.1 Create the `scenarios/` base directory with a `.gitkeep` placeholder
   - [x] 1.2 Create subdirectory structure: `scenarios/<scenario_name>/input/` and `scenarios/<scenario_name>/output/`
-  - [x] 1.3 Create `scripts/` directory for `gltf_to_png.py` and `gltf_to_webm.py`
+  - [x] 1.3 Create `scripts/` directory (empty — viz tools come from flake inputs, not local scripts)
   - [x] 1.4 Initialize Python project with `pyproject.toml` (dependencies: pytest)
   - [x] 1.5 Create `src/` package with `__init__.py` and `src/models.py` defining core data types
   - [x] 1.6 Create `src/config.py` with all configurable constants (max_iterations=10, hard_max_iterations=100, max_scene_duration=60, max_keyframes_per_channel=10000, max_retries=3)
@@ -104,7 +104,7 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 7.2 Implement `src/visualizer.py` — `generate_webm_preview(scene_gltf_path, output_path)`
   - [x] 7.3 Implement `src/visualizer.py` — `generate_intermediate_frames()` for LLM observation
   - [x] 7.4 Implement `src/visualizer.py` — `generate_final_previews()` produces PNG and WebM
-  - [x] 7.5 Implement `src/visualizer.py` — `check_tools_available()` with fallback messaging
+  - [x] 7.5 Implement `src/visualizer.py` — `check_tools_available()` with fallback messaging; tools discovered via `shutil.which()` from flake-provided PATH
   - [x] 7.6 Write unit tests for visualizer integration
 
 - [x] 8.0 Testing, convergence metrics, and documentation

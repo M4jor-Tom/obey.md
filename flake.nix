@@ -7,9 +7,15 @@
       url = "github:safishamsi/graphify/v8";
       flake = false;
     };
+    gltf-to-png = {
+      url = "github:M4jor-Tom/gltf_to_png.py";
+    };
+    gltf-to-webm = {
+      url = "github:M4jor-Tom/gltf_to_webm.py";
+    };
   };
 
-  outputs = { self, nixpkgs, graphify-src }: let
+  outputs = { self, nixpkgs, graphify-src, gltf-to-png, gltf-to-webm }: let
     forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ];
     pkgsFor = nixpkgs.legacyPackages;
     graphifyFor = system: pkgsFor.${system}.python313Packages.buildPythonPackage {
@@ -57,12 +63,17 @@
   in {
     apps = forAllSystems (system: let
       graphify = graphifyFor system;
+      vizTools = pkgsFor.${system}.runCommand "viz-tools" {} ''
+        mkdir -p $out/bin
+        ln -s ${gltf-to-png.apps.${system}.default.program} $out/bin/gltf_to_png
+        ln -s ${gltf-to-webm.apps.${system}.default.program} $out/bin/gltf_to_webm
+      '';
     in {
       default = let
         python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai loguru graphify ]);
         opencode = pkgsFor.${system}.opencode;
         wrapper = pkgsFor.${system}.writeShellScriptBin "obey" ''
-          export PATH="${opencode}/bin:$PATH"
+          export PATH="${vizTools}/bin:${opencode}/bin:$PATH"
           cd "$PWD" && exec ${python}/bin/python -m src.orchestrator "$@"
         '';
       in {
@@ -73,6 +84,7 @@
       test = let
         python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai pytest loguru graphify ]);
         testScript = pkgsFor.${system}.writeShellScriptBin "obey-test" ''
+          export PATH="${vizTools}/bin:$PATH"
           exec ${python}/bin/python -m pytest src/ -v "$@"
         '';
       in {

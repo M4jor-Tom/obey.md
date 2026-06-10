@@ -1,5 +1,41 @@
 {
   "nodes": {
+    "gltf-to-png": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1780172640,
+        "narHash": "sha256-MgGHoffcez5RY0Z5df7wMnKmK6+bBanpqiOaFTuBK0s=",
+        "owner": "M4jor-Tom",
+        "repo": "gltf_to_png.py",
+        "rev": "3daf5f11e7024954ac48ca394c9a0c79648a9019",
+        "type": "github"
+      },
+      "original": {
+        "owner": "M4jor-Tom",
+        "repo": "gltf_to_png.py",
+        "type": "github"
+      }
+    },
+    "gltf-to-webm": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1780174394,
+        "narHash": "sha256-xPrxTd2p8yR8jkOF/2VEAhHyFhQce/MW4w+x5wZ43ig=",
+        "owner": "M4jor-Tom",
+        "repo": "gltf_to_webm.py",
+        "rev": "e323008d12408fc464e49ade32edd467aa96ab61",
+        "type": "github"
+      },
+      "original": {
+        "owner": "M4jor-Tom",
+        "repo": "gltf_to_webm.py",
+        "type": "github"
+      }
+    },
     "graphify-src": {
       "flake": false,
       "locked": {
@@ -19,6 +55,38 @@
     },
     "nixpkgs": {
       "locked": {
+        "lastModified": 1779560665,
+        "narHash": "sha256-tpyBcxPpcQb8ukyNF7DoCwfSY3VPsxHoYwj00Cayv5o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1779560665,
+        "narHash": "sha256-tpyBcxPpcQb8ukyNF7DoCwfSY3VPsxHoYwj00Cayv5o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1780749050,
         "narHash": "sha256-3av0pIjlOWQ6rDbNOmpUSvbNnJkGORQKKjb4LtCZsIY=",
         "owner": "NixOS",
@@ -35,8 +103,10 @@
     },
     "root": {
       "inputs": {
+        "gltf-to-png": "gltf-to-png",
+        "gltf-to-webm": "gltf-to-webm",
         "graphify-src": "graphify-src",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs_3"
       }
     }
   },
