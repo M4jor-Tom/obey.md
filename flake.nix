@@ -104,7 +104,6 @@
           python313Packages.openai
           python313Packages.loguru
           graphify
-          ffmpeg
           opencode
         ];
         shellHook = ''
