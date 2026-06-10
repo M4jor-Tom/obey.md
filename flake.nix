@@ -3,63 +3,66 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    graphify-src = {
+      url = "github:safishamsi/graphify/v8";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs }: let
+  outputs = { self, nixpkgs, graphify-src }: let
     forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ];
     pkgsFor = nixpkgs.legacyPackages;
-
-    gltf_to_png_script = system: let
-      pkgs = pkgsFor.${system};
-      render = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/M4jor-Tom/gltf_to_png.py/master/render.py";
-        sha256 = "0l0912qp4bz51bc8qxk1a152prg66i5jmhij4qbf0i6bsc6jnnxi";
-      };
-    in pkgs.writeShellScriptBin "gltf_to_png" ''
-      set -eu
-      INPUT=""
-      OUTPUT=""
-      while [ $# -gt 0 ]; do
-        case "$1" in
-          -i) INPUT="$2"; shift 2 ;;
-          -o) OUTPUT="$2"; shift 2 ;;
-          *) echo "Unknown arg: $1"; exit 1 ;;
-        esac
-      done
-      exec ${pkgs.blender}/bin/blender --background --python ${render} -- "$INPUT" "$OUTPUT"
-    '';
-
-    gltf_to_webm_script = system: let
-      pkgs = pkgsFor.${system};
-      render = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/M4jor-Tom/gltf_to_webm.py/master/render.py";
-        sha256 = "1awj9xplsqkx3fk07qgk94vs3dgrq397w9683f52gr060n5s72sz";
-      };
-    in pkgs.writeShellScriptBin "gltf_to_webm" ''
-      set -eu
-      INPUT=""
-      OUTPUT=""
-      while [ $# -gt 0 ]; do
-        case "$1" in
-          -i) INPUT="$2"; shift 2 ;;
-          -o) OUTPUT="$2"; shift 2 ;;
-          *) echo "Unknown arg: $1"; exit 1 ;;
-        esac
-      done
-      export PATH="${pkgs.ffmpeg}/bin:$PATH"
-      exec ${pkgs.blender}/bin/blender --background --python ${render} -- "$INPUT" "$OUTPUT" 0 15 72 3.0
-    '';
+    graphifyFor = system: pkgsFor.${system}.python313Packages.buildPythonPackage {
+      pname = "graphifyy";
+      version = "0.8.37";
+      src = graphify-src;
+      pyproject = true;
+      postPatch = ''
+        # Remove tree-sitter grammars not in nixpkgs — graphify still works,
+        # it just won't do AST extraction for those languages.
+        ${pkgsFor.${system}.gnused}/bin/sed -i \
+          -e '/"tree-sitter-typescript",/d' \
+          -e '/"tree-sitter-go",/d' \
+          -e '/"tree-sitter-java",/d' \
+          -e '/"tree-sitter-groovy",/d' \
+          -e '/"tree-sitter-c",/d' \
+          -e '/"tree-sitter-cpp",/d' \
+          -e '/"tree-sitter-ruby",/d' \
+          -e '/"tree-sitter-kotlin",/d' \
+          -e '/"tree-sitter-scala",/d' \
+          -e '/"tree-sitter-php",/d' \
+          -e '/"tree-sitter-swift",/d' \
+          -e '/"tree-sitter-lua",/d' \
+          -e '/"tree-sitter-zig",/d' \
+          -e '/"tree-sitter-powershell",/d' \
+          -e '/"tree-sitter-elixir",/d' \
+          -e '/"tree-sitter-objc",/d' \
+          -e '/"tree-sitter-julia",/d' \
+          -e '/"tree-sitter-verilog",/d' \
+          -e '/"tree-sitter-fortran",/d' \
+          pyproject.toml
+        ${pkgsFor.${system}.gnused}/bin/sed -i \
+          -e '/"tree-sitter-sql",/d' \
+          -e '/"tree-sitter-hcl",/d' \
+          pyproject.toml
+      '';
+      propagatedBuildInputs = with pkgsFor.${system}.python313Packages; [
+        networkx numpy rapidfuzz tree-sitter
+        tree-sitter-python tree-sitter-javascript
+        tree-sitter-rust tree-sitter-c-sharp
+        tree-sitter-bash tree-sitter-json
+        setuptools
+      ];
+    };
   in {
     apps = forAllSystems (system: let
-      pkgs = pkgsFor.${system};
-      gltf_to_png = gltf_to_png_script system;
-      gltf_to_webm = gltf_to_webm_script system;
-      python = pkgs.python313.withPackages (ps: with ps; [ openai loguru ]);
-      opencode = pkgs.opencode;
+      graphify = graphifyFor system;
     in {
       default = let
-        wrapper = pkgs.writeShellScriptBin "obey" ''
-          export PATH="${opencode}/bin:${gltf_to_png}/bin:${gltf_to_webm}/bin:$PATH"
+        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai loguru graphify ]);
+        opencode = pkgsFor.${system}.opencode;
+        wrapper = pkgsFor.${system}.writeShellScriptBin "obey" ''
+          export PATH="${opencode}/bin:$PATH"
           cd "$PWD" && exec ${python}/bin/python -m src.orchestrator "$@"
         '';
       in {
@@ -68,8 +71,8 @@
       };
 
       test = let
-        python = pkgs.python313.withPackages (ps: with ps; [ openai pytest loguru ]);
-        testScript = pkgs.writeShellScriptBin "obey-test" ''
+        python = pkgsFor.${system}.python313.withPackages (ps: with ps; [ openai pytest loguru graphify ]);
+        testScript = pkgsFor.${system}.writeShellScriptBin "obey-test" ''
           exec ${python}/bin/python -m pytest src/ -v "$@"
         '';
       in {
@@ -79,24 +82,31 @@
     });
 
     devShells = forAllSystems (system: let
-      pkgs = pkgsFor.${system};
+      graphify = graphifyFor system;
     in {
-      default = pkgs.mkShell {
-        buildInputs = with pkgs; [
+      default = pkgsFor.${system}.mkShell {
+        buildInputs = with pkgsFor.${system}; [
           python313
           python313Packages.pip
           python313Packages.pytest
           python313Packages.openai
           python313Packages.loguru
+          graphify
           ffmpeg
-          blender
           opencode
-          (gltf_to_png_script system)
-          (gltf_to_webm_script system)
         ];
         shellHook = ''
           echo "GLTF Scene Orchestrator dev shell"
           echo "Run: python -m pytest src/ -v"
+          # Install missing tree-sitter grammars not in nixpkgs
+          pip install --quiet \
+            tree-sitter-typescript tree-sitter-go tree-sitter-java \
+            tree-sitter-groovy tree-sitter-c tree-sitter-cpp \
+            tree-sitter-ruby tree-sitter-kotlin tree-sitter-scala \
+            tree-sitter-php tree-sitter-swift tree-sitter-lua \
+            tree-sitter-zig tree-sitter-powershell tree-sitter-elixir \
+            tree-sitter-objc tree-sitter-julia tree-sitter-verilog \
+            tree-sitter-fortran 2>/dev/null || true
         '';
       };
     });

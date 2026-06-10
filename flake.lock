@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "graphify-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781125272,
+        "narHash": "sha256-IRXHpnUCSt7lFah7fRD7flGW2JHAcXs+Ag+oVLG5Oac=",
+        "owner": "safishamsi",
+        "repo": "graphify",
+        "rev": "565026d3d10fb2d69bd01a5437433f278683fd8b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "safishamsi",
+        "ref": "v8",
+        "repo": "graphify",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1780749050,
@@ -18,6 +35,7 @@
     },
     "root": {
       "inputs": {
+        "graphify-src": "graphify-src",
         "nixpkgs": "nixpkgs"
       }
     }
