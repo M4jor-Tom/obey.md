@@ -125,6 +125,19 @@ fn call_opencode(
 
     let result = parts.concat();
     debug!("opencode response: {} chars", result.len());
+
+    if result.is_empty() && !stderr.is_empty() {
+        let stderr_dump = if stderr.len() > 4000 {
+            &stderr[..4000]
+        } else {
+            &stderr
+        };
+        return Err(format!(
+            "opencode returned empty response — stderr:\n{}",
+            stderr_dump
+        ));
+    }
+
     Ok(result)
 }
 

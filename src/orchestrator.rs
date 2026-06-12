@@ -231,13 +231,7 @@ impl Orchestrator {
         match call_llm_json(prompt, Some(system), None) {
             Ok(result) => Ok(result),
             Err(e) => {
-                warn!("LLM animation call failed, using empty fallback: {}", e);
-                Ok(serde_json::json!({
-                    "animations": [],
-                    "accessors": scene["accessors"],
-                    "bufferViews": scene["bufferViews"],
-                    "buffers": scene["buffers"],
-                }))
+                panic!("LLM animation call failed, using empty fallback: {}", e);
             }
         }
     }
