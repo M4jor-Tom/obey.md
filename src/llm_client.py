@@ -91,6 +91,8 @@ def _call_opencode(
             cmd.extend(["--file", path])
         logger.debug("Attached {} image(s) to opencode call", len(images))
 
+    logger.debug("Running opencode subprocess: cmd={}", cmd)
+    logger.debug("Prompt length: {} chars", len(full_prompt))
     proc = subprocess.run(
         cmd,
         input=full_prompt,
@@ -103,7 +105,14 @@ def _call_opencode(
         import shutil
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    logger.debug(
+        "opencode subprocess done: returncode={}, stdout_len={}, stderr_len={}",
+        proc.returncode,
+        len(proc.stdout),
+        len(proc.stderr),
+    )
     if proc.returncode != 0:
+        logger.debug("opencode stderr: {}", proc.stderr[:2000])
         raise RuntimeError(f"opencode run failed (exit {proc.returncode}): {proc.stderr}")
 
     parts: list[str] = []
