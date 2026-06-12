@@ -1,0 +1,11 @@
+pub mod animation_author;
+pub mod config;
+pub mod context_manager;
+pub mod gltf_resolver;
+pub mod llm_client;
+pub mod manifest;
+pub mod models;
+pub mod orchestrator;
+pub mod scene_builder;
+pub mod validator;
+pub mod visualizer;

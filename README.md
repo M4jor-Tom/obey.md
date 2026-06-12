@@ -8,7 +8,7 @@ The system operates as an iterative visual feedback loop:
 
 1. **Setup** — A root scene GLTF is created referencing each input character via URI. Input GLTFs are copied to `output/` unmodified.
 2. **Author** — The LLM writes animation data directly into the GLTF JSON (TRS keyframes, morph targets, skeletal animation).
-3. **Render & Observe** — `gltf_to_webm.py` renders the scene to video. The LLM observes sampled frames.
+3. **Render & Observe** — Renders the scene to video via `gltf_to_webm`. The LLM observes sampled frames.
 4. **Critique & Refine** — The LLM compares output to the prompt and produces delta animation data.
 5. **Loop** — Steps 2–4 repeat until convergence or max iterations.
 6. **Final Output** — Animated scene GLTF plus PNG and WebM previews.
@@ -16,35 +16,21 @@ The system operates as an iterative visual feedback loop:
 ## Project Structure
 
 ```
-scenarios/<scenario_name>/
-├── input/                       # Manifest JSON + character directories
-│   ├── manifest.json
-│   ├── character.gltf/          # 1 entity = 1 directory
-│   │   ├── character.gltf       # Actual GLTF file
-│   │   └── texture.png          # Companion assets
-│   └── other.gltf/
-│       ├── other.gltf
-│       └── ...
-├── output/                      # Generated scene GLTF + previews
-│   ├── scene.gltf
-│   ├── character.gltf/          # Copied from input
-│   │   ├── character.gltf
-│   │   └── texture.png
-│   ├── preview.png
-│   ├── preview.webm
-│   └── iter_0000.webm
-scripts/                         # (Optional) manual tool placement; Nix provides gltf_to_png, gltf_to_webm on PATH
-src/                             # Python package
-├── manifest.py                  # Manifest parsing and validation
-├── gltf_resolver.py             # Local GLTF file resolution
-├── scene_builder.py             # Root scene GLTF generation
-├── animation_author.py          # LLM prompt templating and animation helpers
-├── validator.py                 # GLTF JSON schema validation
-├── orchestrator.py              # Main iterative feedback loop
-├── context_manager.py           # Context window management
-├── visualizer.py                # Preview generation integration
-├── models.py                    # Shared data types
-└── config.py                    # Configuration constants
+src/                             # Rust crate
+├── main.rs                     # CLI entry point
+├── lib.rs                      # Module declarations
+├── manifest.rs                 # Manifest parsing and validation
+├── gltf_resolver.rs            # Local GLTF file resolution
+├── scene_builder.rs            # Root scene GLTF generation
+├── animation_author.rs         # LLM prompt templating and animation helpers
+├── validator.rs                # GLTF JSON schema validation
+├── orchestrator.rs             # Main iterative feedback loop
+├── context_manager.rs          # Context window management
+├── visualizer.rs               # Preview generation integration
+├── models.rs                   # Shared data types
+├── config.rs                   # Configuration constants
+└── llm_client.rs               # LLM API client (OpenAI / opencode)
+Cargo.toml                      # Rust dependencies
 ```
 
 ## Manifest Schema
@@ -73,22 +59,28 @@ A JSON manifest defines the scene:
 ## Usage
 
 ```bash
-# Run with explicit input and output directories
-python -m src.orchestrator -i scenarios/example/input -o scenarios/example/output
+# Build
+cargo build
 
-# The input directory must contain a manifest.json and one directory per character:
-# scenarios/example/input/
-#   manifest.json
-#   character.gltf/
-#     character.gltf
-#     textures/...
+# Run with explicit input and output directories
+cargo run -- -i scenarios/example/input -o scenarios/example/output
 
 # Run with nix
 nix run . -- -i scenarios/example/input -o scenarios/example/output
 
 # Run all tests
-python -m pytest src/ -v
+cargo test
 ```
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | API key for remote LLM provider |
+| `OPENAI_BASE_URL` | Base URL for OpenAI-compatible API |
+| `OPENAI_MODEL` | Model name (default: gpt-4o) |
+
+When no remote config is set, the system falls back to the `opencode` CLI as a subprocess backend.
 
 ## Development
 
@@ -96,17 +88,16 @@ python -m pytest src/ -v
 # Enter dev shell (Nix)
 nix develop
 
+# Build
+cargo build
+
 # Run tests
-python -m pytest src/ -v
+cargo test
 ```
-
-## Dependencies
-
-- Python 3.10+
 
 ## Configuration
 
-See `src/config.py`:
+See `src/config.rs`:
 - `MAX_ITERATIONS` (default: 10)
 - `HARD_MAX_ITERATIONS` (default: 100)
 - `MAX_SCENE_DURATION` (default: 60s)
