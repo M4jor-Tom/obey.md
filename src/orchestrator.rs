@@ -231,7 +231,7 @@ impl Orchestrator {
         match call_llm_json(prompt, Some(system), None) {
             Ok(result) => Ok(result),
             Err(e) => {
-                panic!("LLM animation call failed, using empty fallback: {}", e);
+                panic!("LLM animation call failed: {}", e);
             }
         }
     }

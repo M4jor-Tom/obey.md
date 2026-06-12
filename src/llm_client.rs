@@ -34,15 +34,29 @@ fn call_opencode(
     system_prompt: Option<&str>,
     images: Option<&[Vec<u8>]>,
 ) -> Result<String, String> {
-    let full_prompt = match system_prompt {
+    let base_prompt = match system_prompt {
         Some(sys) => format!("<system>\n{}\n</system>\n\n{}", sys, prompt),
         None => prompt.to_string(),
     };
 
     info!("Using opencode subprocess backend");
 
+    let response_file = format!(
+        "/tmp/opencode_response_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    );
+
+    let full_prompt = format!(
+        "{}\n\nWrite your entire final answer to the file at `{}`. Use the Write tool to write to this path.",
+        base_prompt, response_file
+    );
+
     let mut cmd = Command::new("opencode");
-    cmd.args(["run", "--format", "json", "--dangerously-skip-permissions"]);
+    cmd.args(["run", "--dangerously-skip-permissions"]);
 
     if let Some(imgs) = images {
         let tmp_dir = tempfile::Builder::new()
@@ -105,37 +119,22 @@ fn call_opencode(
         ));
     }
 
-    let mut parts: Vec<String> = Vec::new();
-    for line in stdout.lines() {
-        let line = line.trim().to_string();
-        if line.is_empty() {
-            continue;
-        }
-        if let Ok(event) = serde_json::from_str::<Value>(&line) {
-            if event.get("type").and_then(|v| v.as_str()) == Some("text") {
-                if let Some(text) = event
-                    .pointer("/part/text")
-                    .and_then(|v| v.as_str())
-                {
-                    parts.push(text.to_string());
-                }
-            }
-        }
-    }
+    let result = std::fs::read_to_string(&response_file).map_err(|e| {
+        format!(
+            "Failed to read opencode response from {}: {}. stderr: {}",
+            response_file,
+            e,
+            if stderr.len() > 2000 { &stderr[..2000] } else { &stderr }
+        )
+    })?;
 
-    let result = parts.concat();
-    debug!("opencode response: {} chars", result.len());
+    let _ = std::fs::remove_file(&response_file);
 
-    if result.is_empty() && !stderr.is_empty() {
-        let stderr_dump = if stderr.len() > 4000 {
-            &stderr[..4000]
-        } else {
-            &stderr
-        };
-        return Err(format!(
-            "opencode returned empty response — stderr:\n{}",
-            stderr_dump
-        ));
+    let result = result.trim().to_string();
+    debug!("opencode response (from file): {} chars", result.len());
+
+    if result.is_empty() {
+        return Err("opencode returned empty response (file was empty)".to_string());
     }
 
     Ok(result)
