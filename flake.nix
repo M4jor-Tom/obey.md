@@ -95,6 +95,11 @@
       checks = {
         inherit obey-clippy;
         inherit obey-doc;
+        obey-test = craneLib.cargoTest (commonArgs // {
+          cargoArtifacts = obey;
+          nativeBuildInputs = [ pkgs.cargo ];
+          buildInputs = [ vizTools ];
+        });
       };
 
       packages.default = obey;
@@ -111,14 +116,12 @@
           program = "${wrapper}/bin/obey";
         };
 
-        test = let
-          testScript = pkgs.writeShellScriptBin "obey-test" ''
-            export PATH="${vizTools}/bin:$PATH"
-            exec cargo test "$@"
-          '';
-        in {
+        test = {
           type = "app";
-          program = "${testScript}/bin/obey-test";
+          program = "${pkgs.writeShellScriptBin "cargo-test" ''
+            export PATH="${obey}/bin:${vizTools}/bin:${pkgs.cargo}/bin:${pkgs.stdenv.cc}/bin:$PATH"
+            exec cargo test
+          ''}/bin/cargo-test";
         };
       };
 
