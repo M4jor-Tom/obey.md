@@ -106,7 +106,10 @@ impl Orchestrator {
             &iteration_state_json_str,
             self.manifest.duration_seconds.unwrap_or(MAX_SCENE_DURATION),
         );
+        debug!("[Iter {}] Authoring prompt (first 3000 chars): {}", iteration_number, if prompt.len() > 3000 { &prompt[..3000] } else { &prompt });
         let animation_data = self.call_llm_for_animation(&prompt, scene_gltf)?;
+        let anim_data_str = animation_data.to_string();
+        debug!("[Iter {}] LLM animation response (first 3000 chars): {}", iteration_number, if anim_data_str.len() > 3000 { &anim_data_str[..3000] } else { &anim_data_str });
         let n_anims = animation_data["animations"]
             .as_array()
             .map(|a| a.len())
@@ -228,6 +231,7 @@ impl Orchestrator {
 
     fn call_llm_for_animation(&self, prompt: &str, _scene: &Value) -> Result<Value, String> {
         let system = load_system_prompt();
+        debug!("System prompt (first 1000 chars): {}", if system.len() > 1000 { &system[..1000] } else { &system });
         match call_llm_json(prompt, Some(&system), None) {
             Ok(result) => Ok(result),
             Err(e) => {
@@ -263,9 +267,11 @@ Critique the following:
 
 Provide a concise, actionable critique.";
 
+        debug!("Critique prompt: {} chars", critique_prompt.len());
         let frames_slice: Option<&[Vec<u8>]> = if frames.is_empty() { None } else { Some(&frames) };
         match call_llm(critique_prompt, None, frames_slice) {
             Ok(critique) => {
+                debug!("Critique LLM response (first 2000 chars): {}", if critique.len() > 2000 { &critique[..2000] } else { &critique });
                 if critique.is_empty() {
                     "No critique generated.".to_string()
                 } else {
@@ -291,8 +297,10 @@ Reply with exactly one word: 'continue' or 'finalize'.",
             "Convergence decision prompt: {} chars",
             decision_prompt.len()
         );
+        debug!("Convergence decision prompt content: {}", decision_prompt);
         match call_llm(&decision_prompt, None, None) {
             Ok(decision) => {
+                debug!("Convergence decision LLM response: {}", decision);
                 let decision = decision.trim().to_lowercase();
                 if decision.contains("finalize") {
                     "finalize".to_string()

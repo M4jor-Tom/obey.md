@@ -40,6 +40,7 @@ fn call_opencode(
     };
 
     info!("Using opencode subprocess backend");
+    debug!("opencode prompt (first 2000 chars): {}", if prompt.len() > 2000 { &prompt[..2000] } else { prompt });
 
     let response_file = format!(
         "/tmp/opencode_response_{}_{}",
@@ -132,6 +133,7 @@ fn call_opencode(
 
     let result = result.trim().to_string();
     debug!("opencode response (from file): {} chars", result.len());
+    debug!("opencode response content (first 2000 chars): {}", if result.len() > 2000 { &result[..2000] } else { &result });
 
     if result.is_empty() {
         return Err("opencode returned empty response (file was empty)".to_string());
@@ -179,6 +181,7 @@ fn call_openai(
     );
 
     info!("LLM call: backend=remote, model={}", model);
+    debug!("OpenAI request body: {}", serde_json::to_string(&body).unwrap_or_default());
 
     let mut req = client.post(&url).json(&body);
     if !api_key.is_empty() {
@@ -199,6 +202,7 @@ fn call_openai(
         .to_string();
 
     debug!("LLM response: {} chars", result.len());
+    debug!("LLM response content (first 3000 chars): {}", if result.len() > 3000 { &result[..3000] } else { &result });
     Ok(result)
 }
 
@@ -224,6 +228,7 @@ pub fn call_llm_json(
 ) -> Result<Value, String> {
     let text = call_llm(prompt, system_prompt, images)?;
     let text = text.trim().to_string();
+    debug!("call_llm_json raw text (first 500 chars): {}", if text.len() > 500 { &text[..500] } else { &text });
     let text = if text.starts_with("```") {
         text.splitn(2, '\n')
             .nth(1)
