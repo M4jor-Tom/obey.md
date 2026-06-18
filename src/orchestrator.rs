@@ -3,7 +3,7 @@ use std::path::Path;
 use log::{debug, info, warn};
 use serde_json::Value;
 
-use crate::animation_author::{apply_animation_to_scene, build_authoring_prompt};
+use crate::animation_author::{apply_animation_to_scene, build_authoring_prompt, load_system_prompt};
 use crate::config::{MAX_ITERATIONS, HARD_MAX_ITERATIONS, MAX_RETRIES, MAX_SCENE_DURATION};
 use crate::context_manager::{estimate_tokens, summarize_prior_state, trim_iteration_history};
 use crate::gltf_resolver::resolve_all;
@@ -226,9 +226,9 @@ impl Orchestrator {
         Ok((updated_scene, state))
     }
 
-    fn call_llm_for_animation(&self, prompt: &str, scene: &Value) -> Result<Value, String> {
-        let system = "You are a GLTF animation expert. Respond with ONLY valid JSON matching the requested animation structure. No markdown fences, no explanation.";
-        match call_llm_json(prompt, Some(system), None) {
+    fn call_llm_for_animation(&self, prompt: &str, _scene: &Value) -> Result<Value, String> {
+        let system = load_system_prompt();
+        match call_llm_json(prompt, Some(&system), None) {
             Ok(result) => Ok(result),
             Err(e) => {
                 panic!("LLM animation call failed: {}", e);

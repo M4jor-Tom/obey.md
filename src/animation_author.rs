@@ -1,12 +1,54 @@
 use base64::Engine;
 use serde_json::{json, Value};
 
+/// Load the "Animation System Prompt" section from rigged-gltf-animator.md.
+/// Falls back to the default hardcoded string if the file doesn't exist or
+/// the section can't be extracted.
+pub fn load_system_prompt() -> String {
+    let default = "You are a GLTF animation engineer. Respond with ONLY valid JSON matching the requested animation structure. No markdown fences, no explanation.".to_string();
+
+    let skill_paths = [
+        "rigged-gltf-animator.md",
+    ];
+
+    let content = skill_paths
+        .iter()
+        .find_map(|p| std::fs::read_to_string(p).ok());
+
+    let text = match content {
+        Some(t) => t,
+        None => return default,
+    };
+
+    // Extract content between "## Animation System Prompt" and next "## " heading
+    let start = match text.find("## Animation System Prompt") {
+        Some(i) => i,
+        None => return default,
+    };
+
+    let after_header = &text[start + "## Animation System Prompt".len()..];
+    let end_bound = after_header.find("\n## ").unwrap_or(after_header.len());
+    let section = after_header[..end_bound].trim();
+
+    if section.is_empty() {
+        return default;
+    }
+
+    section.to_string()
+}
+
 pub const ANIMATION_AUTHORING_PROMPT_TEMPLATE: &str = r#"
 You are an expert GLTF animation engineer. Below is the current scene GLTF JSON and the user's animation prompt.
 
 Your task is to produce a JSON object containing animation data that will be merged into the scene GLTF.
 
-The animation data must follow this structure:
+IMPORTANT INDEX RULES:
+- The scene GLTF includes a `_index_offsets` field showing the next available index for each array.
+- Your generated accessor indices, bufferView indices, and buffer indices MUST start from these offsets.
+- For example, if _index_offsets.accessor_offset is 15634, your first new accessor uses index 15634, the next 15635, etc.
+- The same applies to bufferViews and buffers.
+
+Your response must follow this structure:
 {
   "animations": [
     {
@@ -32,7 +74,7 @@ The animation data must follow this structure:
   "accessors": [
     {
       "bufferView": <bufferView_index>,
-      "componentType": <FLOAT=5126>,
+      "componentType": 5126,
       "count": <count>,
       "type": "<VEC3|VEC4|SCALAR>",
       "max": [...],
@@ -44,7 +86,7 @@ The animation data must follow this structure:
       "buffer": 0,
       "byteOffset": <offset>,
       "byteLength": <length>,
-      "target": <ARRAY_BUFFER=34962>
+      "target": 34962
     }
   ],
   "buffers": [
@@ -62,7 +104,7 @@ Rules:
 - Keyframe times should be in seconds, starting at 0.
 - Do not exceed 10,000 keyframes per channel.
 - Scene duration should be inferred from the prompt or use {duration_seconds}s.
-- Ensure all accessor indices and bufferView indices are sequential and valid.
+- Use _index_offsets from the scene GLTF to determine starting indices for accessors, bufferViews, and buffers.
 
 Current scene GLTF:
 {scene_gltf_json}
@@ -76,6 +118,37 @@ Iteration state (previous critiques, current progress):
 Respond with ONLY the valid JSON animation data. No markdown fences, no explanation.
 "#;
 
+/// Strip a GLTF Value down to only the data needed for animation authoring.
+/// Removes meshes, materials, textures, images, samplers, cameras, accessors,
+/// bufferViews, buffers, and extension registrations — all mesh vertex data
+/// irrelevant to animation. Injects `_index_offsets` so the LLM knows the
+/// existing array sizes for correct index generation.
+pub fn strip_to_rigging(scene_gltf: &Value) -> Value {
+    let mut result = serde_json::Map::new();
+
+    for key in &["asset", "scene", "nodes", "skins", "animations"] {
+        if let Some(val) = scene_gltf.get(*key) {
+            result.insert(key.to_string(), val.clone());
+        }
+    }
+
+    if let Some(scenes) = scene_gltf.get("scenes") {
+        result.insert("scenes".to_string(), scenes.clone());
+    }
+
+    let acc_count = scene_gltf["accessors"].as_array().map(|a| a.len()).unwrap_or(0);
+    let bv_count = scene_gltf["bufferViews"].as_array().map(|a| a.len()).unwrap_or(0);
+    let buf_count = scene_gltf["buffers"].as_array().map(|a| a.len()).unwrap_or(0);
+
+    result.insert("_index_offsets".to_string(), serde_json::json!({
+        "accessor_offset": acc_count,
+        "bufferView_offset": bv_count,
+        "buffer_offset": buf_count,
+    }));
+
+    Value::Object(result)
+}
+
 pub fn build_authoring_prompt(
     scene_gltf: &Value,
     manifest_json: &str,
@@ -83,7 +156,7 @@ pub fn build_authoring_prompt(
     duration_seconds: f64,
 ) -> String {
     let prompt = ANIMATION_AUTHORING_PROMPT_TEMPLATE
-        .replace("{scene_gltf_json}", &serde_json::to_string_pretty(scene_gltf).unwrap_or_default())
+        .replace("{scene_gltf_json}", &serde_json::to_string_pretty(&strip_to_rigging(scene_gltf)).unwrap_or_default())
         .replace("{manifest_json}", manifest_json)
         .replace("{iteration_state_json}", iteration_state_json)
         .replace("{duration_seconds}", &duration_seconds.to_string());
@@ -594,5 +667,133 @@ mod tests {
             .filter_map(|m| m["capability"].as_str())
             .collect();
         assert!(caps.contains(&"skeletal_animation"));
+    }
+
+    #[test]
+    fn test_strip_to_rigging_keeps_rig_keys() {
+        let gltf = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{"name": "root", "children": [1]}],
+            "skins": [{"joints": [0], "inverseBindMatrices": 0}],
+            "animations": [{"name": "idle", "channels": [], "samplers": []}],
+            "accessors": [{"bufferView": 0, "componentType": 5126, "count": 1, "type": "SCALAR"}],
+            "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 4}],
+            "buffers": [{"uri": "data:base64,AAAAAA==", "byteLength": 4}],
+        });
+        let stripped = strip_to_rigging(&gltf);
+        assert!(stripped.get("asset").is_some(), "asset should be kept");
+        assert!(stripped.get("scene").is_some(), "scene should be kept");
+        assert!(stripped.get("scenes").is_some(), "scenes should be kept");
+        assert!(stripped.get("nodes").is_some(), "nodes should be kept");
+        assert!(stripped.get("skins").is_some(), "skins should be kept");
+        assert!(stripped.get("animations").is_some(), "animations should be kept");
+        assert!(stripped.get("accessors").is_none(), "accessors should be stripped");
+        assert!(stripped.get("bufferViews").is_none(), "bufferViews should be stripped");
+        assert!(stripped.get("buffers").is_none(), "buffers should be stripped");
+        let offsets = stripped["_index_offsets"].as_object().unwrap();
+        assert_eq!(offsets["accessor_offset"], 1);
+        assert_eq!(offsets["bufferView_offset"], 1);
+        assert_eq!(offsets["buffer_offset"], 1);
+    }
+
+    #[test]
+    fn test_strip_to_rigging_removes_non_rig_keys() {
+        let gltf = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": []}],
+            "nodes": [],
+            "meshes": [{"primitives": []}],
+            "materials": [{"name": "red"}],
+            "textures": [{"source": 0}],
+            "images": [{"uri": "tex.png"}],
+            "samplers": [{"magFilter": 9729}],
+            "cameras": [{"type": "perspective"}],
+            "accessors": [{"bufferView": 0, "componentType": 5126, "count": 1, "type": "SCALAR"}],
+            "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 4}],
+            "buffers": [{"uri": "data:base64,AQIDBA==", "byteLength": 4}],
+            "extensionsUsed": ["KHR_lights"],
+            "extensionsRequired": ["KHR_lights"],
+        });
+        let stripped = strip_to_rigging(&gltf);
+        for key in &["meshes", "materials", "textures", "images", "samplers",
+                     "cameras", "accessors", "bufferViews", "buffers",
+                     "extensionsUsed", "extensionsRequired"]
+        {
+            assert!(stripped.get(*key).is_none(), "{} should be stripped", key);
+        }
+        assert!(stripped.get("_index_offsets").is_some(), "_index_offsets should exist");
+    }
+
+    #[test]
+    fn test_strip_to_rigging_index_offsets() {
+        let gltf = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [],
+            "accessors": [1, 2, 3, 4, 5],
+            "bufferViews": [1, 2, 3],
+            "buffers": [1, 2],
+        });
+        let stripped = strip_to_rigging(&gltf);
+        let offsets = stripped["_index_offsets"].as_object().unwrap();
+        assert_eq!(offsets["accessor_offset"], 5);
+        assert_eq!(offsets["bufferView_offset"], 3);
+        assert_eq!(offsets["buffer_offset"], 2);
+    }
+
+    #[test]
+    fn test_strip_to_rigging_preserves_nodes_and_hierarchy() {
+        let gltf = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [
+                {"name": "Hips", "children": [1, 2]},
+                {"name": "Spine", "translation": [0.0, 1.0, 0.0]},
+                {"name": "Head", "rotation": [0.0, 0.0, 0.0, 1.0]},
+            ],
+            "skins": [{"joints": [0, 1, 2], "inverseBindMatrices": 0}],
+            "accessors": [{}],
+            "bufferViews": [{}],
+            "buffers": [{}],
+        });
+        let stripped = strip_to_rigging(&gltf);
+        let nodes = stripped["nodes"].as_array().unwrap();
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[0]["name"], "Hips");
+        assert_eq!(nodes[0]["children"], json!([1, 2]));
+        assert_eq!(nodes[1]["name"], "Spine");
+        assert_eq!(nodes[1]["translation"], json!([0.0, 1.0, 0.0]));
+        assert_eq!(nodes[2]["name"], "Head");
+        assert_eq!(nodes[2]["rotation"], json!([0.0, 0.0, 0.0, 1.0]));
+        let skins = stripped["skins"].as_array().unwrap();
+        assert_eq!(skins.len(), 1);
+        assert_eq!(skins[0]["joints"], json!([0, 1, 2]));
+
+        let offsets = stripped["_index_offsets"].as_object().unwrap();
+        assert_eq!(offsets["accessor_offset"], 1);
+        assert_eq!(offsets["bufferView_offset"], 1);
+        assert_eq!(offsets["buffer_offset"], 1);
+    }
+
+    #[test]
+    fn test_strip_to_rigging_empty_scene() {
+        let gltf = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": []}],
+            "nodes": [],
+        });
+        let stripped = strip_to_rigging(&gltf);
+        assert!(stripped.get("asset").is_some());
+        assert!(stripped.get("meshes").is_none());
+        let offsets = stripped["_index_offsets"].as_object().unwrap();
+        assert_eq!(offsets["accessor_offset"], 0);
+        assert_eq!(offsets["bufferView_offset"], 0);
+        assert_eq!(offsets["buffer_offset"], 0);
     }
 }
